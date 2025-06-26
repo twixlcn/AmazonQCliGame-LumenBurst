@@ -97,14 +97,12 @@ class Firefly:
 
 # Tree class
 class Tree:
-    def __init__(self, x, y, size):
+    def __init__(self, x, y, size, is_long_tree=False):
         self.x = x
         self.y = y
         self.size = size
-
-        # Randomly choose between regular and long tree
-        self.image = tree_img if random.random() > 0.5 else long_tree_img
-        
+        # Use specified tree type instead of random
+        self.image = long_tree_img if is_long_tree else tree_img
         # Scale the image based on size
         scale_factor = self.size / 40  # Assuming 40 is the base size
         new_width = int(self.image.get_width() * scale_factor)
@@ -119,12 +117,13 @@ class Tree:
 
 # Bush class
 class Bush:
-    def __init__(self, x, y, size):
+    def __init__(self, x, y, size, is_long_bush=False):
         self.x = x
         self.y = y
         self.size = size
-        # Randomly choose between short and long bush
-        self.image = short_bush_img if random.random() > 0.5 else long_bush_img
+
+        # Use specified bush type instead of random
+        self.image = long_bush_img if is_long_bush else short_bush_img
         # Scale the image based on size
         scale_factor = self.size / 35  # Assuming 35 is the base size
         new_width = int(self.image.get_width() * scale_factor)
@@ -182,29 +181,32 @@ class Button:
 
 # Create game objects
 fireflies = [Firefly() for _ in range(50)]
+
+# Create trees with fixed types (alternating between regular and long trees)
 trees = [
-    Tree(100, SCREEN_HEIGHT, 30),
-    Tree(300, SCREEN_HEIGHT, 20),
-    Tree(500, SCREEN_HEIGHT, 35),
-    Tree(700, SCREEN_HEIGHT, 25),
-    Tree(200, SCREEN_HEIGHT, 25),
-    Tree(600, SCREEN_HEIGHT, 30)
+    Tree(100, SCREEN_HEIGHT, 30, False),  # Regular tree
+    Tree(200, SCREEN_HEIGHT, 25, False),  # Regular tree
+    Tree(300, SCREEN_HEIGHT, 20, True),   # Long tree
+    Tree(450, SCREEN_HEIGHT, 35, False),  # Regular tree
+    Tree(700, SCREEN_HEIGHT, 25, True),   # Long tree
+    Tree(600, SCREEN_HEIGHT, 30, True)    # Long tree
 ]
 
+# Create bushes with fixed types (alternating between short and long bushes)
 bushes = [
-    Bush(150, SCREEN_HEIGHT - 30, 20),
-    Bush(400, SCREEN_HEIGHT - 25, 25),
-    Bush(650, SCREEN_HEIGHT - 35, 20),
-    Bush(250, SCREEN_HEIGHT - 20, 25),
-    Bush(550, SCREEN_HEIGHT - 30, 20)
+    Bush(150, SCREEN_HEIGHT, 20, True),  # Long bush
+    Bush(250, SCREEN_HEIGHT, 25, False),   # Short bush
+    Bush(400, SCREEN_HEIGHT, 25, True),   # Long bush
+    Bush(550, SCREEN_HEIGHT, 20, False),   # Short bush      
+    Bush(650, SCREEN_HEIGHT, 20, True),  # Long bush
 ]
 
 # Add rocks to the scene
 rocks = [
-    Rock(180, SCREEN_HEIGHT - 15, 25),
-    Rock(450, SCREEN_HEIGHT - 20, 30),
-    Rock(620, SCREEN_HEIGHT - 15, 20),
-    Rock(350, SCREEN_HEIGHT - 10, 15)
+    Rock(180, SCREEN_HEIGHT, 25),
+    Rock(450, SCREEN_HEIGHT, 30),
+    Rock(620, SCREEN_HEIGHT, 20),
+    Rock(350, SCREEN_HEIGHT, 15)
 ]
 
 # Create play button
