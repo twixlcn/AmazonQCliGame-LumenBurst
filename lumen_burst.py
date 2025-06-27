@@ -13,6 +13,11 @@ SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Lumen Burst")
 
+# Game states
+MAIN_MENU = 0
+GAME_PLAYING = 1
+current_game_state = MAIN_MENU
+
 # Colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -32,6 +37,12 @@ long_tree_img = pygame.image.load('assets/long_tree.png').convert_alpha()
 short_bush_img = pygame.image.load('assets/short_bush.png').convert_alpha()
 long_bush_img = pygame.image.load('assets/long_bush.png').convert_alpha()
 rock_img = pygame.image.load('assets/rock.png').convert_alpha()
+light_bg_img = pygame.image.load('assets/light_bg.png').convert()
+dark_bg_img = pygame.image.load('assets/dark_bg.png').convert()
+
+# Scale background images to fit screen
+light_bg_img = pygame.transform.scale(light_bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+dark_bg_img = pygame.transform.scale(dark_bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
 # Firefly class
 class Firefly:
@@ -179,6 +190,43 @@ class Button:
     def is_clicked(self, mouse_pos, mouse_click):
         return self.rect.collidepoint(mouse_pos) and mouse_click
 
+# Light effect class
+class LightEffect:
+    def __init__(self, radius=150, intensity=180):
+        self.radius = radius
+        self.intensity = intensity
+        self.position = (0, 0)
+        self.glow_surf = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
+        self.create_light_surface()
+        
+    def create_light_surface(self):
+        # Pre-render the light surface for better performance
+        for r in range(self.radius, 0, -2):
+            alpha = int(self.intensity * (1 - r / self.radius))
+            pygame.draw.circle(
+                self.glow_surf, 
+                (255, 255, 255, alpha),
+                (self.radius, self.radius), 
+                r
+            )
+        
+    def update(self, mouse_pos):
+        self.position = mouse_pos
+        
+    def draw(self, surface, background):
+        # Create a surface for the light mask
+        mask = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        mask.fill((0, 0, 0, 200))  # Semi-transparent black (darkens the whole screen)
+        
+        # Blit the pre-rendered light surface onto the mask
+        mask.blit(self.glow_surf, 
+                 (self.position[0] - self.radius, self.position[1] - self.radius),
+                 special_flags=pygame.BLEND_RGBA_SUB)
+            
+        # Apply the background and mask to the surface
+        surface.blit(background, (0, 0))  # Draw background first
+        surface.blit(mask, (0, 0))  # Apply the mask with the light effect
+
 # Create game objects
 fireflies = [Firefly() for _ in range(50)]
 
@@ -194,11 +242,13 @@ trees = [
 
 # Create bushes with fixed types (alternating between short and long bushes)
 bushes = [
+    Bush(50, SCREEN_HEIGHT, 20, False),  # Short bush
     Bush(150, SCREEN_HEIGHT, 20, True),  # Long bush
     Bush(250, SCREEN_HEIGHT, 25, False),   # Short bush
     Bush(400, SCREEN_HEIGHT, 25, True),   # Long bush
     Bush(550, SCREEN_HEIGHT, 20, False),   # Short bush      
     Bush(650, SCREEN_HEIGHT, 20, True),  # Long bush
+    Bush(750, SCREEN_HEIGHT, 20, False),   # Short bush      
 ]
 
 # Add rocks to the scene
@@ -219,8 +269,88 @@ play_button = Button(
     GREEN
 )
 
-# Main game loop
+# Game loop
+def game_loop():
+    global current_game_state
+    clock = pygame.time.Clock()
+    
+    # Create a light effect with a larger radius and higher intensity for better visibility
+    light_effect = LightEffect(radius=180, intensity=200)
+    
+    # Choose which background to use (dark_bg for this implementation)
+    background = dark_bg_img
+    
+    # Add some game objects to the game scene
+    game_trees = [
+        Tree(150, SCREEN_HEIGHT, 35, False),
+        Tree(350, SCREEN_HEIGHT, 30, True),
+        Tree(550, SCREEN_HEIGHT, 40, False),
+        Tree(700, SCREEN_HEIGHT, 25, True)
+    ]
+    
+    game_bushes = [
+        Bush(100, SCREEN_HEIGHT, 25, True),
+        Bush(250, SCREEN_HEIGHT, 20, False),
+        Bush(450, SCREEN_HEIGHT, 25, True),
+        Bush(650, SCREEN_HEIGHT, 20, False)
+    ]
+    
+    game_rocks = [
+        Rock(200, SCREEN_HEIGHT, 30),
+        Rock(400, SCREEN_HEIGHT, 25),
+        Rock(600, SCREEN_HEIGHT, 20)
+    ]
+    
+    # Create some fireflies for the game scene
+    game_fireflies = [Firefly() for _ in range(30)]
+    
+    # Font for instructions
+    instruction_font = pygame.font.SysFont('arial', 16)
+    
+    while current_game_state == GAME_PLAYING:
+        mouse_pos = pygame.mouse.get_pos()
+        
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == KEYDOWN:
+                if event.key == K_ESCAPE:
+                    current_game_state = MAIN_MENU
+                    return
+        
+        # Update fireflies
+        for firefly in game_fireflies:
+            firefly.update()
+        
+        # Update light effect position
+        light_effect.update(mouse_pos)
+        
+        # Draw everything
+        light_effect.draw(screen, background)
+        
+        # Draw game objects
+        for tree in game_trees:
+            tree.draw(screen)
+        for bush in game_bushes:
+            bush.draw(screen)
+        for rock in game_rocks:
+            rock.draw(screen)
+        
+        # Draw fireflies on top
+        for firefly in game_fireflies:
+            firefly.draw(screen)
+        
+        # Draw instructions
+        instruction_text = instruction_font.render("Move mouse to control light - Press ESC to return to menu", True, (255, 255, 255))
+        screen.blit(instruction_text, (10, 10))
+        
+        pygame.display.flip()
+        clock.tick(60)
+
+# Main menu loop
 def main_menu():
+    global current_game_state
     clock = pygame.time.Clock()
     
     while True:
@@ -242,9 +372,10 @@ def main_menu():
         # Check button hover and click
         play_button.check_hover(mouse_pos)
         if play_button.is_clicked(mouse_pos, mouse_clicked):
-            # This would start the game
-            print("Starting the game!")
-            # For now, we'll just continue showing the menu
+            # Start the game
+            global current_game_state
+            current_game_state = GAME_PLAYING
+            return
         
         # Draw everything
         # Fill with dark blue for night sky
@@ -286,4 +417,8 @@ def main_menu():
         clock.tick(60)
 
 if __name__ == "__main__":
-    main_menu()
+    while True:
+        if current_game_state == MAIN_MENU:
+            main_menu()
+        elif current_game_state == GAME_PLAYING:
+            game_loop()
