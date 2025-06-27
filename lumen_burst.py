@@ -280,30 +280,6 @@ def game_loop():
     # Choose which background to use (dark_bg for this implementation)
     background = dark_bg_img
     
-    # Add some game objects to the game scene
-    game_trees = [
-        Tree(150, SCREEN_HEIGHT, 35, False),
-        Tree(350, SCREEN_HEIGHT, 30, True),
-        Tree(550, SCREEN_HEIGHT, 40, False),
-        Tree(700, SCREEN_HEIGHT, 25, True)
-    ]
-    
-    game_bushes = [
-        Bush(100, SCREEN_HEIGHT, 25, True),
-        Bush(250, SCREEN_HEIGHT, 20, False),
-        Bush(450, SCREEN_HEIGHT, 25, True),
-        Bush(650, SCREEN_HEIGHT, 20, False)
-    ]
-    
-    game_rocks = [
-        Rock(200, SCREEN_HEIGHT, 30),
-        Rock(400, SCREEN_HEIGHT, 25),
-        Rock(600, SCREEN_HEIGHT, 20)
-    ]
-    
-    # Create some fireflies for the game scene
-    game_fireflies = [Firefly() for _ in range(30)]
-    
     # Font for instructions
     instruction_font = pygame.font.SysFont('arial', 16)
     
@@ -319,27 +295,11 @@ def game_loop():
                     current_game_state = MAIN_MENU
                     return
         
-        # Update fireflies
-        for firefly in game_fireflies:
-            firefly.update()
-        
         # Update light effect position
         light_effect.update(mouse_pos)
         
         # Draw everything
         light_effect.draw(screen, background)
-        
-        # Draw game objects
-        for tree in game_trees:
-            tree.draw(screen)
-        for bush in game_bushes:
-            bush.draw(screen)
-        for rock in game_rocks:
-            rock.draw(screen)
-        
-        # Draw fireflies on top
-        for firefly in game_fireflies:
-            firefly.draw(screen)
         
         # Draw instructions
         instruction_text = instruction_font.render("Move mouse to control light - Press ESC to return to menu", True, (255, 255, 255))
