@@ -3,6 +3,7 @@ import sys
 import random
 import math
 from pygame.locals import *
+import Firefly
 
 # Initialize pygame
 pygame.init()
@@ -49,7 +50,7 @@ dark_bg_img = pygame.image.load('assets/dark_bg.png').convert()
 light_bg_img = pygame.transform.scale(light_bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 dark_bg_img = pygame.transform.scale(dark_bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
-# Firefly class
+
 class Firefly:
     def __init__(self):
         self.x = random.randint(0, SCREEN_WIDTH)
@@ -65,7 +66,7 @@ class Firefly:
         self.disappearing = False
         self.clicked = False
         self.animation_progress = 0.0  # 0.0 to 1.0
-        self.animation_speed = 0.05
+        self.animation_speed = 0.03  # Slowed down for more consistent appearance
 
     def update(self):
         # Update position with slight random movement
@@ -108,7 +109,9 @@ class Firefly:
     def check_click(self, mouse_pos):
         # Check if the firefly was clicked
         distance = math.sqrt((mouse_pos[0] - self.x)**2 + (mouse_pos[1] - self.y)**2)
-        if distance <= self.size * 4:  # Increased click area from 3 to 4 times the size
+        
+        # Only allow clicks on fully appeared fireflies
+        if distance <= self.size * 4 and not self.appearing and not self.disappearing and not self.clicked:
             self.clicked = True
             self.disappearing = False
             self.appearing = False
@@ -179,6 +182,7 @@ class Firefly:
         
         # Blit the glow surface onto the main surface
         surface.blit(glow_surf, (self.x - glow_radius, self.y - glow_radius))
+
 
 # Tree class
 class Tree:
@@ -364,7 +368,7 @@ def game_loop():
     clock = pygame.time.Clock()
     
     # Create a light effect with a smaller radius and higher intensity for a brighter, focused light
-    light_effect = LightEffect(radius=100, intensity=400)  # Increased intensity from 300 to 400
+    light_effect = LightEffect(radius=100, intensity=400)
     
     # Choose which background to use (dark_bg for this implementation)
     background = dark_bg_img
@@ -375,32 +379,51 @@ def game_loop():
     # Font for instructions
     instruction_font = pygame.font.SysFont('arial', 16)
     
-    # Time (in milliseconds) each firefly should stay visible
-    firefly_lifetime = 3000  # 3 seconds
+    # Game speed parameters - defined by score thresholds
+    score_thresholds = [0, 1500, 3000, 4500, 7000, 10000]
+    difficulty_levels = [0.0, 0.10, 0.25, 0.5, 0.75, 1.0]  # 0.0 to 1.0 scale
     
-    # Time (in milliseconds) between new firefly appearances
-    firefly_spawn_delay = 500  # 0.5 seconds
+    # Timing parameters at different difficulty levels
+    firefly_lifetime_range = (4000, 2000)  # (slowest, fastest) in milliseconds
+    spawn_delay_range = (800, 300)  # (slowest, fastest) in milliseconds
+    
+    # Current timing values (will change as score increases)
+    current_difficulty = 0.0
+    firefly_lifetime = firefly_lifetime_range[0]
+    firefly_spawn_delay = spawn_delay_range[0]
     
     # Track the last time a firefly was spawned
     last_spawn_time = 0
     
     # Score counter
     score = 0
+    previous_level = 0
+    level_up_effect = None
     score_font = pygame.font.SysFont('arial', 24)
     
     # Light effect growth parameters
     base_light_radius = 100
-    max_light_radius = 200
+    max_light_radius = 250  # Increased maximum to allow for score-based growth
     light_growth_per_click = 15
     light_shrink_rate = 0.2  # Amount to decrease per frame
     
-    # Miss effect parameters
-    miss_effects = []  # List to store active miss effects
+    # Light effect minimum size (game over if reached)
+    min_light_radius = base_light_radius  # Game over if light shrinks to this size
     
-    # Game win/lose parameters
-    misses_allowed = 10  # Number of misses before game over
-    current_misses = 0
-    win_score = 100000  # Score needed to win
+    # Light shrinking parameters
+    light_shrink_timer = 0
+    light_shrink_interval = 60  # Frames between automatic light shrinking (1 second at 60 FPS)
+    auto_light_shrink_amount = 0.5  # Amount to decrease automatically
+    
+    # Score-based light radius growth
+    light_radius_thresholds = [0, 1000, 3000, 5000, 7500, 10000]
+    light_radius_bonuses = [0, 10, 20, 30, 40, 50]  # Additional radius at each threshold
+    
+    # Click effect parameters
+    click_effects = []  # List to store active click effects
+    
+    # Game win parameters
+    win_score = 20000  # Score needed to win
     
     # Start the game timer
     start_time = pygame.time.get_ticks()
@@ -409,6 +432,36 @@ def game_loop():
         mouse_pos = pygame.mouse.get_pos()
         current_time = pygame.time.get_ticks()
         mouse_clicked = False
+        
+        # Calculate difficulty based on score thresholds
+        difficulty_level = 0
+        for i, threshold in enumerate(score_thresholds):
+            if score >= threshold:
+                difficulty_level = i
+        
+        # Check for level up
+        if difficulty_level > previous_level:
+            previous_level = difficulty_level
+            # Create level up effect
+            level_up_effect = {
+                'timer': 120,  # Show for 2 seconds
+                'text': f"LEVEL {difficulty_level + 1}!",
+                'size': 48,
+                'color': (255, 255, 100)
+            }
+        
+        # Get difficulty percentage based on current level
+        current_difficulty = difficulty_levels[difficulty_level]
+        
+        # Calculate light radius bonus based on score
+        light_radius_bonus = 0
+        for i, threshold in enumerate(light_radius_thresholds):
+            if score >= threshold:
+                light_radius_bonus = light_radius_bonuses[i]
+        
+        # Adjust game speed based on current difficulty
+        firefly_lifetime = firefly_lifetime_range[0] - (firefly_lifetime_range[0] - firefly_lifetime_range[1]) * current_difficulty
+        firefly_spawn_delay = spawn_delay_range[0] - (spawn_delay_range[0] - spawn_delay_range[1]) * current_difficulty
         
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -426,6 +479,11 @@ def game_loop():
         if len(game_fireflies) < 5 and current_time - last_spawn_time > firefly_spawn_delay:
             # Create a new stationary firefly
             firefly = Firefly()
+            
+            # Adjust animation speed based on difficulty
+            animation_speed = 0.03 + (0.02 * current_difficulty)  # 0.03 to 0.05
+            firefly.animation_speed = animation_speed
+            
             firefly.speed = 0  # Make it stationary
             
             # Randomize size with a bias toward different sizes
@@ -452,8 +510,9 @@ def game_loop():
             firefly = firefly_data['firefly']
             
             # Check if firefly should start disappearing due to timeout
-            if not firefly.disappearing and not firefly.clicked and current_time - firefly_data['creation_time'] >= firefly_lifetime:
-                firefly.start_disappearing()
+            if not firefly.disappearing and not firefly.clicked:
+                if current_time - firefly_data['creation_time'] >= firefly_lifetime:
+                    firefly.start_disappearing()
             
             # Check for clicks on fireflies
             if mouse_clicked:
@@ -478,46 +537,21 @@ def game_loop():
                             'color': (255, 255, 100) if points >= 100 else (255, 255, 255)
                         }
                         # Increase light radius when firefly is clicked
-                        light_effect.radius = min(max_light_radius, light_effect.radius + light_growth_per_click)
+                        max_radius_with_bonus = max_light_radius + light_radius_bonus
+                        light_effect.radius = min(max_radius_with_bonus, light_effect.radius + light_growth_per_click)
                         # Recreate the light surface with new radius
                         light_effect.glow_surf = pygame.Surface((int(light_effect.radius * 2), int(light_effect.radius * 2)), pygame.SRCALPHA)
                         light_effect.create_light_surface()
                         break  # Only process one click at a time
                 
-                # If no firefly was hit, check if we clicked near any firefly
+                # Add a click effect regardless of whether a firefly was hit
                 if not firefly_hit:
-                    near_firefly = False
-                    for firefly_data in game_fireflies:
-                        firefly = firefly_data['firefly']
-                        # Calculate distance to firefly
-                        distance = math.sqrt((mouse_pos[0] - firefly.x)**2 + (mouse_pos[1] - firefly.y)**2)
-                        # Check if click was near a firefly (within a reasonable distance)
-                        if distance <= firefly.size * 8:  # Wider area to detect "near misses"
-                            near_firefly = True
-                            break
-                    
-                    # Only count as a miss if we were trying to click a firefly but missed
-                    if near_firefly:
-                        miss_effects.append({
-                            'position': mouse_pos,
-                            'timer': 30,  # Show for half a second
-                            'radius': 10,  # Starting radius
-                            'color': (255, 50, 50, 180)  # Red with some transparency
-                        })
-                        current_misses += 1
-                        
-                        # Check if player has lost
-                        if current_misses >= misses_allowed:
-                            final_score = score
-                            current_game_state = GAME_OVER
-                    else:
-                        # Just a background click, show a subtle effect but don't count as miss
-                        miss_effects.append({
-                            'position': mouse_pos,
-                            'timer': 15,  # Show for quarter second (shorter)
-                            'radius': 5,  # Smaller radius
-                            'color': (150, 150, 150, 120)  # Gray with more transparency
-                        })
+                    click_effects.append({
+                        'position': mouse_pos,
+                        'timer': 15,  # Show for quarter second
+                        'radius': 5,  # Small radius
+                        'color': (150, 150, 150, 120)  # Gray with transparency
+                    })
             
             # Update firefly and check if it should be removed
             if firefly.update():
@@ -527,36 +561,64 @@ def game_loop():
         for i in sorted(fireflies_to_remove, reverse=True):
             game_fireflies.pop(i)
         
-        # Gradually decrease light radius back to base size
-        if light_effect.radius > base_light_radius:
+        # Gradually decrease light radius back to base size + score bonus
+        target_radius = base_light_radius + light_radius_bonus
+        if light_effect.radius > target_radius:
             light_effect.radius -= light_shrink_rate
-            if abs(light_effect.radius - base_light_radius) < light_shrink_rate:
-                light_effect.radius = base_light_radius
+            if abs(light_effect.radius - target_radius) < light_shrink_rate:
+                light_effect.radius = target_radius
             # Recreate the light surface with new radius
             light_effect.glow_surf = pygame.Surface((int(light_effect.radius * 2), int(light_effect.radius * 2)), pygame.SRCALPHA)
             light_effect.create_light_surface()
+            
+        # Automatic light shrinking over time
+        light_shrink_timer += 1
+        if light_shrink_timer >= light_shrink_interval:
+            light_shrink_timer = 0
+            light_effect.radius -= auto_light_shrink_amount
+            # Recreate the light surface with new radius
+            light_effect.glow_surf = pygame.Surface((int(light_effect.radius * 2), int(light_effect.radius * 2)), pygame.SRCALPHA)
+            light_effect.create_light_surface()
+            
+        # Check if light has returned to its original size (game over)
+        # We exclude the beginning of the game with a grace period
+        if abs(light_effect.radius - base_light_radius) < 0.5 and current_time - start_time > 3000:  # Give 3 seconds grace period
+            # Game over - player's light has returned to original size
+            final_score = score
+            current_game_state = GAME_OVER
+            return  # Exit the game loop immediately
         
-        # Update miss effects
-        miss_effects_to_remove = []
-        for i, effect in enumerate(miss_effects):
+        # Update click effects
+        click_effects_to_remove = []
+        for i, effect in enumerate(click_effects):
             effect['timer'] -= 1
-            effect['radius'] += 0.8  # Expand the effect
+            effect['radius'] += 0.5  # Expand the effect
             # Fade out the effect
-            alpha = int(180 * (effect['timer'] / 30))
-            effect['color'] = (255, 50, 50, alpha)
+            alpha = int(120 * (effect['timer'] / 15))
+            effect['color'] = (150, 150, 150, alpha)
             
             if effect['timer'] <= 0:
-                miss_effects_to_remove.append(i)
+                click_effects_to_remove.append(i)
                 
-        # Remove expired miss effects
-        for i in sorted(miss_effects_to_remove, reverse=True):
-            miss_effects.pop(i)
+        # Remove expired click effects
+        for i in sorted(click_effects_to_remove, reverse=True):
+            click_effects.pop(i)
         
         # Update light effect position
         light_effect.update(mouse_pos)
         
         # Draw everything
         light_effect.draw(screen, background)
+        
+        # Draw click effects
+        for effect in click_effects:
+            pygame.draw.circle(
+                screen,
+                effect['color'],
+                (int(effect['position'][0]), int(effect['position'][1])),
+                int(effect['radius']),
+                1  # Line width
+            )
         
         # Draw fireflies
         for firefly_data in game_fireflies:
@@ -590,13 +652,66 @@ def game_loop():
         score_text = score_font.render(f"Score: {score:,}", True, (255, 255, 100))  # Yellow color for score
         screen.blit(score_text, (SCREEN_WIDTH - score_text.get_width() - 10, 10))
         
-        # Draw misses remaining
-        misses_remaining = misses_allowed - current_misses
-        misses_color = (255, 255, 255)  # White by default
-        if misses_remaining <= 3:
-            misses_color = (255, 50, 50)  # Red when low on misses
-        misses_text = score_font.render(f"Misses: {current_misses}/{misses_allowed}", True, misses_color)
-        screen.blit(misses_text, (SCREEN_WIDTH - misses_text.get_width() - 10, 40))
+        # Draw difficulty level
+        level_number = difficulty_level + 1  # Convert 0-based index to 1-based level number
+        
+        # Define color based on level
+        if level_number == 1:
+            level_color = (50, 255, 50)  # Green for level 1
+        elif level_number == 2:
+            level_color = (150, 255, 50)  # Yellow-green for level 2
+        elif level_number == 3:
+            level_color = (255, 255, 50)  # Yellow for level 3
+        elif level_number == 4:
+            level_color = (255, 150, 50)  # Orange for level 4
+        else:
+            level_color = (255, 50, 50)  # Red for level 5
+            
+        level_text = score_font.render(f"Level: {level_number}", True, level_color)
+        screen.blit(level_text, (SCREEN_WIDTH - level_text.get_width() - 10, 40))
+        
+        # Draw light radius bonus if any
+        if light_radius_bonus > 0:
+            light_bonus_text = instruction_font.render(f"Light bonus: +{light_radius_bonus}", True, (100, 200, 255))
+            screen.blit(light_bonus_text, (SCREEN_WIDTH - light_bonus_text.get_width() - 10, 70))
+            y_offset = 100  # For next threshold text
+        else:
+            y_offset = 70  # For next threshold text
+        
+        # Show next threshold if not at max level
+        if difficulty_level < len(score_thresholds) - 1:
+            next_threshold = score_thresholds[difficulty_level + 1]
+            points_needed = next_threshold - score
+            next_level_text = instruction_font.render(f"Next level: {points_needed:,} points", True, (200, 200, 200))
+            screen.blit(next_level_text, (SCREEN_WIDTH - next_level_text.get_width() - 10, y_offset))
+            
+        # Draw level up effect if active
+        if level_up_effect:
+            level_up_effect['timer'] -= 1
+            
+            if level_up_effect['timer'] > 0:
+                # Calculate size and opacity based on timer
+                size_factor = min(1.0, level_up_effect['timer'] / 60)  # Grows in first half
+                if level_up_effect['timer'] > 90:
+                    size_factor = (120 - level_up_effect['timer']) / 30  # Start small and grow
+                
+                opacity = 255
+                if level_up_effect['timer'] < 30:
+                    opacity = int(255 * level_up_effect['timer'] / 30)  # Fade out in last half second
+                
+                # Create the font with dynamic size
+                dynamic_size = int(level_up_effect['size'] * size_factor)
+                level_font = pygame.font.SysFont('comicsansms', dynamic_size)
+                
+                # Create the text surface
+                level_surf = level_font.render(level_up_effect['text'], True, level_up_effect['color'])
+                level_surf.set_alpha(opacity)
+                
+                # Draw centered on screen
+                level_rect = level_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+                screen.blit(level_surf, level_rect)
+            else:
+                level_up_effect = None
         
         # Check for game state changes
         if current_game_state != GAME_PLAYING:
@@ -803,9 +918,9 @@ def win_screen():
     
     # Create restart button
     restart_button = Button(
-        SCREEN_WIDTH // 2 - 100,
+        SCREEN_WIDTH // 2 - 145,
         SCREEN_HEIGHT // 2 + 50,
-        200, 60,
+        300, 60,
         "PLAY AGAIN",
         DARK_GREEN,
         GREEN
