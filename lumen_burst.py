@@ -4,9 +4,12 @@ import random
 import math
 from pygame.locals import *
 import Firefly
+import music
 
 # Initialize pygame
 pygame.init()
+# Initialize music
+music.initialize()
 
 # Screen dimensions
 SCREEN_WIDTH = 800
@@ -364,6 +367,7 @@ play_button = Button(
 
 # Game loop
 def game_loop():
+    music.play_music("bg_music", loops=-1, fade_ms=1000)
     global current_game_state, final_score
     clock = pygame.time.Clock()
     
@@ -442,6 +446,7 @@ def game_loop():
         # Check for level up
         if difficulty_level > previous_level:
             previous_level = difficulty_level
+            music.play_sound("level_up")
             # Create level up effect
             level_up_effect = {
                 'timer': 120,  # Show for 2 seconds
@@ -474,6 +479,7 @@ def game_loop():
             elif event.type == MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left mouse button
                     mouse_clicked = True
+
         
         # Check if we need to add a new firefly
         if len(game_fireflies) < 5 and current_time - last_spawn_time > firefly_spawn_delay:
@@ -522,6 +528,7 @@ def game_loop():
                     clicked, points = firefly.check_click(mouse_pos)
                     if clicked:
                         firefly_hit = True
+                        music.play_sound("collect_fireflies")
                         score += points
                         
                         # Check if player has won
@@ -586,6 +593,10 @@ def game_loop():
             # Game over - player's light has returned to original size
             final_score = score
             current_game_state = GAME_OVER
+            music.stop_music("bg_music")
+            music.play_sound("game_over")
+            music.play_music("intro", loops=-1, fade_ms=1000)
+
             return  # Exit the game loop immediately
         
         # Update click effects
@@ -725,6 +736,9 @@ def main_menu():
     global current_game_state
     clock = pygame.time.Clock()
     
+    # Play intro music when entering main menu
+    music.play_music("intro", loops=-1, fade_ms=1000)
+    
     while True:
         mouse_pos = pygame.mouse.get_pos()
         mouse_clicked = False
@@ -744,7 +758,11 @@ def main_menu():
         # Check button hover and click
         play_button.check_hover(mouse_pos)
         if play_button.is_clicked(mouse_pos, mouse_clicked):
-            # Start the game
+            # Play the button sound effect
+            music.play_sound("play")
+            # Stop intro music and start the game
+            music.stop_music("intro", fade_ms=500)
+
             global current_game_state
             current_game_state = GAME_PLAYING
             return
@@ -852,10 +870,12 @@ def game_over_screen():
         menu_button.check_hover(mouse_pos)
         
         if restart_button.is_clicked(mouse_pos, mouse_clicked):
+            music.play_sound("play")
             current_game_state = GAME_PLAYING
             return
         
         if menu_button.is_clicked(mouse_pos, mouse_clicked):
+            music.play_sound("play")
             current_game_state = MAIN_MENU
             return
         
