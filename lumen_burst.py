@@ -3,8 +3,15 @@ import sys
 import random
 import math
 from pygame.locals import *
-import Firefly
 import music
+
+# Components
+from components.firefly import Firefly
+from components.tree import Tree
+from components.bush import Bush
+from components.rock import Rock
+from components.button import Button
+from components.light_effect import LightEffect
 
 # Initialize pygame
 pygame.init()
@@ -53,306 +60,38 @@ dark_bg_img = pygame.image.load('assets/dark_bg.png').convert()
 light_bg_img = pygame.transform.scale(light_bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 dark_bg_img = pygame.transform.scale(dark_bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
-
-class Firefly:
-    def __init__(self):
-        self.x = random.randint(0, SCREEN_WIDTH)
-        self.y = random.randint(0, SCREEN_HEIGHT)
-        self.size = random.randint(4, 8)  # Increased size range from (2,4) to (4,8)
-        self.brightness = random.uniform(0.3, 1.0)
-        self.speed = random.uniform(0.5, 1.5)
-        self.angle = random.uniform(0, 2 * math.pi)
-        self.pulse_speed = random.uniform(0.02, 0.05)
-        self.pulse_counter = random.uniform(0, 2 * math.pi)
-        # Animation states
-        self.appearing = True
-        self.disappearing = False
-        self.clicked = False
-        self.animation_progress = 0.0  # 0.0 to 1.0
-        self.animation_speed = 0.03  # Slowed down for more consistent appearance
-
-    def update(self):
-        # Update position with slight random movement
-        self.angle += random.uniform(-0.1, 0.1)
-        self.x += math.cos(self.angle) * self.speed
-        self.y += math.sin(self.angle) * self.speed
-        
-        # Wrap around screen edges
-        if self.x < 0:
-            self.x = SCREEN_WIDTH
-        elif self.x > SCREEN_WIDTH:
-            self.x = 0
-        if self.y < 0:
-            self.y = SCREEN_HEIGHT
-        elif self.y > SCREEN_HEIGHT:
-            self.y = 0
-            
-        # Pulsating effect
-        self.pulse_counter += self.pulse_speed
-        self.brightness = 0.5 + 0.5 * math.sin(self.pulse_counter)
-        
-        # Handle animations
-        if self.appearing:
-            self.animation_progress += self.animation_speed
-            if self.animation_progress >= 1.0:
-                self.animation_progress = 1.0
-                self.appearing = False
-        elif self.disappearing or self.clicked:
-            self.animation_progress -= self.animation_speed
-            if self.animation_progress <= 0.0:
-                self.animation_progress = 0.0
-                return True  # Signal to remove this firefly
-        
-        return False  # Don't remove this firefly yet
-
-    def start_disappearing(self):
-        self.disappearing = True
-        self.appearing = False
-    
-    def check_click(self, mouse_pos):
-        # Check if the firefly was clicked
-        distance = math.sqrt((mouse_pos[0] - self.x)**2 + (mouse_pos[1] - self.y)**2)
-        
-        # Only allow clicks on fully appeared fireflies
-        if distance <= self.size * 4 and not self.appearing and not self.disappearing and not self.clicked:
-            self.clicked = True
-            self.disappearing = False
-            self.appearing = False
-            
-            # Calculate score based on size - smaller fireflies are worth more points
-            # Size ranges from 4-8 (base) or 5-10 (in game)
-            # For base size 4: score = 200, for base size 8: score = 100
-            # For game size 5: score = 150, for game size 10: score = 50
-            if self.size <= 6:  # Smaller fireflies (higher score)
-                score_value = int(250 - (self.size * 25))  # 250 - (4*25) = 150, 250 - (6*25) = 100
-            else:  # Larger fireflies (lower score)
-                score_value = int(150 - (self.size * 10))  # 150 - (7*10) = 80, 150 - (10*10) = 50
-            
-            # Ensure score is within desired ranges
-            score_value = max(50, min(200, score_value))
-            
-            return True, score_value
-        return False, 0
-
-    def draw(self, surface):
-        # Draw the firefly with a glowing effect
-        glow_radius = self.size * 4  # Increased multiplier from 3 to 4 for larger glow
-        
-        # Create a surface for the glow
-        glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-        
-        # Apply animation effects
-        animation_factor = self.animation_progress
-        current_size = self.size * animation_factor
-        current_brightness = self.brightness * animation_factor
-        
-        # Draw the glow (multiple circles with decreasing alpha)
-        for i in range(4):  # Increased from 3 to 4 layers for more detailed glow
-            # Ensure alpha is within valid range (0-255)
-            alpha = min(255, max(0, int(100 * current_brightness) // (i + 1)))
-            radius = glow_radius * animation_factor - i * 2
-            if radius > 0:
-                pygame.draw.circle(
-                    glow_surf, 
-                    (LIGHT_YELLOW[0], LIGHT_YELLOW[1], LIGHT_YELLOW[2], alpha),
-                    (glow_radius, glow_radius), 
-                    radius
-                )
-        
-        # Draw the firefly core
-        # Ensure alpha is within valid range (0-255)
-        core_alpha = min(255, max(0, int(255 * current_brightness)))
-        pygame.draw.circle(
-            glow_surf, 
-            (YELLOW[0], YELLOW[1], YELLOW[2], core_alpha),
-            (glow_radius, glow_radius), 
-            current_size
-        )
-        
-        # Draw click effect if clicked
-        if self.clicked:
-            # Draw expanding ring
-            ring_radius = glow_radius * (2.0 - animation_factor)
-            ring_width = max(1, int(3 * animation_factor))
-            if ring_radius > 0:
-                pygame.draw.circle(
-                    glow_surf,
-                    (255, 255, 255, int(100 * animation_factor)),
-                    (glow_radius, glow_radius),
-                    int(ring_radius),
-                    ring_width
-                )
-        
-        # Blit the glow surface onto the main surface
-        surface.blit(glow_surf, (self.x - glow_radius, self.y - glow_radius))
-
-
-# Tree class
-class Tree:
-    def __init__(self, x, y, size, is_long_tree=False):
-        self.x = x
-        self.y = y
-        self.size = size
-        # Use specified tree type instead of random
-        self.image = long_tree_img if is_long_tree else tree_img
-        # Scale the image based on size
-        scale_factor = self.size / 40  # Assuming 40 is the base size
-        new_width = int(self.image.get_width() * scale_factor)
-        new_height = int(self.image.get_height() * scale_factor)
-        self.image = pygame.transform.scale(self.image, (new_width, new_height))
-        
-    def draw(self, surface):
-        # Draw the tree image
-        # Position is adjusted to place the bottom center of the image at (x, y)
-        surface.blit(self.image, (self.x - self.image.get_width() // 2, 
-                                 self.y - self.image.get_height()))
-
-# Bush class
-class Bush:
-    def __init__(self, x, y, size, is_long_bush=False):
-        self.x = x
-        self.y = y
-        self.size = size
-
-        # Use specified bush type instead of random
-        self.image = long_bush_img if is_long_bush else short_bush_img
-        # Scale the image based on size
-        scale_factor = self.size / 35  # Assuming 35 is the base size
-        new_width = int(self.image.get_width() * scale_factor)
-        new_height = int(self.image.get_height() * scale_factor)
-        self.image = pygame.transform.scale(self.image, (new_width, new_height))
-        
-    def draw(self, surface):
-        # Draw the bush image
-        # Position is adjusted to place the bottom center of the image at (x, y)
-        surface.blit(self.image, (self.x - self.image.get_width() // 2, 
-                                 self.y - self.image.get_height()))
-
-# Rock class
-class Rock:
-    def __init__(self, x, y, size):
-        self.x = x
-        self.y = y
-        self.size = size
-        self.image = rock_img
-        # Scale the image based on size
-        scale_factor = self.size / 30  # Assuming 30 is the base size
-        new_width = int(self.image.get_width() * scale_factor)
-        new_height = int(self.image.get_height() * scale_factor)
-        self.image = pygame.transform.scale(self.image, (new_width, new_height))
-        
-    def draw(self, surface):
-        # Draw the rock image
-        # Position is adjusted to place the bottom center of the image at (x, y)
-        surface.blit(self.image, (self.x - self.image.get_width() // 2, 
-                                 self.y - self.image.get_height()))
-
-# Button class
-class Button:
-    def __init__(self, x, y, width, height, text, color, hover_color):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.text = text
-        self.color = color
-        self.hover_color = hover_color
-        self.is_hovered = False
-        
-    def draw(self, surface):
-        color = self.hover_color if self.is_hovered else self.color
-        pygame.draw.rect(surface, color, self.rect, border_radius=15)
-        pygame.draw.rect(surface, WHITE, self.rect, 3, border_radius=15)
-        
-        text_surf = button_font.render(self.text, True, WHITE)
-        text_rect = text_surf.get_rect(center=self.rect.center)
-        surface.blit(text_surf, text_rect)
-        
-    def check_hover(self, mouse_pos):
-        self.is_hovered = self.rect.collidepoint(mouse_pos)
-        
-    def is_clicked(self, mouse_pos, mouse_click):
-        return self.rect.collidepoint(mouse_pos) and mouse_click
-
-# Light effect class
-class LightEffect:
-    def __init__(self, radius=150, intensity=200):
-        self.radius = radius
-        self.intensity = intensity
-        self.position = (0, 0)
-        self.glow_surf = pygame.Surface((int(self.radius * 2), int(self.radius * 2)), pygame.SRCALPHA)
-        self.create_light_surface()
-        
-    def create_light_surface(self):
-        # Pre-render the light surface for better performance
-        center = int(self.radius)
-        
-        # Create a more intense center
-        core_radius = int(self.radius * 0.4)  # Inner bright core
-        for r in range(core_radius, 0, -1):
-            # Higher alpha for the core area
-            alpha = min(255, int(self.intensity * 1.5 * (1 - r / self.radius)))
-            pygame.draw.circle(
-                self.glow_surf, 
-                (255, 255, 255, alpha),
-                (center, center), 
-                r
-            )
-        
-        # Create the outer glow
-        for r in range(int(self.radius), core_radius, -2):
-            alpha = min(255, int(self.intensity * (1 - r / self.radius)))
-            pygame.draw.circle(
-                self.glow_surf, 
-                (255, 255, 255, alpha),
-                (center, center), 
-                r
-            )
-        
-    def update(self, mouse_pos):
-        self.position = mouse_pos
-        
-    def draw(self, surface, background):
-        # Create a surface for the light mask
-        mask = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        mask.fill((0, 0, 0, 220))  # Darker background (increased from 200 to 220)
-        
-        # Blit the pre-rendered light surface onto the mask
-        mask.blit(self.glow_surf, 
-                 (int(self.position[0] - self.radius), int(self.position[1] - self.radius)),
-                 special_flags=pygame.BLEND_RGBA_SUB)
-            
-        # Apply the background and mask to the surface
-        surface.blit(background, (0, 0))  # Draw background first
-        surface.blit(mask, (0, 0))  # Apply the mask with the light effect
+# Classes have been moved to separate files
 
 # Create game objects
 fireflies = [Firefly() for _ in range(50)]
 
 # Create trees with fixed types (alternating between regular and long trees)
 trees = [
-    Tree(100, SCREEN_HEIGHT, 30, False),  # Regular tree
-    Tree(200, SCREEN_HEIGHT, 25, False),  # Regular tree
-    Tree(300, SCREEN_HEIGHT, 20, True),   # Long tree
-    Tree(450, SCREEN_HEIGHT, 35, False),  # Regular tree
-    Tree(700, SCREEN_HEIGHT, 25, True),   # Long tree
-    Tree(600, SCREEN_HEIGHT, 30, True)    # Long tree
+    Tree(100, SCREEN_HEIGHT, 30, False, tree_img, long_tree_img),  # Regular tree
+    Tree(200, SCREEN_HEIGHT, 25, False, tree_img, long_tree_img),  # Regular tree
+    Tree(300, SCREEN_HEIGHT, 20, True, tree_img, long_tree_img),   # Long tree
+    Tree(450, SCREEN_HEIGHT, 35, False, tree_img, long_tree_img),  # Regular tree
+    Tree(700, SCREEN_HEIGHT, 25, True, tree_img, long_tree_img),   # Long tree
+    Tree(600, SCREEN_HEIGHT, 30, True, tree_img, long_tree_img)    # Long tree
 ]
 
 # Create bushes with fixed types (alternating between short and long bushes)
 bushes = [
-    Bush(50, SCREEN_HEIGHT, 20, False),  # Short bush
-    Bush(150, SCREEN_HEIGHT, 20, True),  # Long bush
-    Bush(250, SCREEN_HEIGHT, 25, False),   # Short bush
-    Bush(400, SCREEN_HEIGHT, 25, True),   # Long bush
-    Bush(550, SCREEN_HEIGHT, 20, False),   # Short bush      
-    Bush(650, SCREEN_HEIGHT, 20, True),  # Long bush
-    Bush(750, SCREEN_HEIGHT, 20, False),   # Short bush      
+    Bush(50, SCREEN_HEIGHT, 20, False, short_bush_img, long_bush_img),  # Short bush
+    Bush(150, SCREEN_HEIGHT, 20, True, short_bush_img, long_bush_img),  # Long bush
+    Bush(250, SCREEN_HEIGHT, 25, False, short_bush_img, long_bush_img),   # Short bush
+    Bush(400, SCREEN_HEIGHT, 25, True, short_bush_img, long_bush_img),   # Long bush
+    Bush(550, SCREEN_HEIGHT, 20, False, short_bush_img, long_bush_img),   # Short bush      
+    Bush(650, SCREEN_HEIGHT, 20, True, short_bush_img, long_bush_img),  # Long bush
+    Bush(750, SCREEN_HEIGHT, 20, False, short_bush_img, long_bush_img),   # Short bush      
 ]
 
 # Add rocks to the scene
 rocks = [
-    Rock(180, SCREEN_HEIGHT, 25),
-    Rock(450, SCREEN_HEIGHT, 30),
-    Rock(620, SCREEN_HEIGHT, 20),
-    Rock(350, SCREEN_HEIGHT, 15)
+    Rock(180, SCREEN_HEIGHT, 25, rock_img),
+    Rock(450, SCREEN_HEIGHT, 30, rock_img),
+    Rock(620, SCREEN_HEIGHT, 20, rock_img),
+    Rock(350, SCREEN_HEIGHT, 15, rock_img)
 ]
 
 # Create play button
@@ -362,7 +101,9 @@ play_button = Button(
     200, 60,
     "PLAY",
     DARK_GREEN,
-    GREEN
+    GREEN,
+    button_font,
+    WHITE
 )
 
 # Game loop
@@ -372,7 +113,7 @@ def game_loop():
     clock = pygame.time.Clock()
     
     # Create a light effect with a smaller radius and higher intensity for a brighter, focused light
-    light_effect = LightEffect(radius=100, intensity=400)
+    light_effect = LightEffect(radius=100, intensity=400, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
     
     # Choose which background to use (dark_bg for this implementation)
     background = dark_bg_img
@@ -823,7 +564,9 @@ def game_over_screen():
         200, 60,
         "RETRY",
         DARK_GREEN,
-        GREEN
+        GREEN,
+        button_font,
+        WHITE
     )
     
     # Create menu button
@@ -833,7 +576,8 @@ def game_over_screen():
         200, 60,
         "MENU",
         DARK_GREEN,
-        GREEN
+        GREEN,
+        button_font,
     )
     
     # Create some fading fireflies for the background
@@ -943,7 +687,9 @@ def win_screen():
         300, 60,
         "PLAY AGAIN",
         DARK_GREEN,
-        GREEN
+        GREEN,
+        button_font,
+        WHITE
     )
     
     # Create menu button
@@ -951,6 +697,9 @@ def win_screen():
         SCREEN_WIDTH // 2 - 100,
         SCREEN_HEIGHT // 2 + 130,
         200, 60,
+        "MENU",
+        button_font,
+        WHITE,
         "MENU",
         DARK_GREEN,
         GREEN
