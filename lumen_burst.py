@@ -275,7 +275,7 @@ def game_loop():
     clock = pygame.time.Clock()
     
     # Create a light effect with a larger radius and higher intensity for better visibility
-    light_effect = LightEffect(radius=180, intensity=200)
+    light_effect = LightEffect(radius=100, intensity=250)
     
     # Choose which background to use (dark_bg for this implementation)
     background = dark_bg_img
