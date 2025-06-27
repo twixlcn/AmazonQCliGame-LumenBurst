@@ -20,6 +20,9 @@ GAME_OVER = 2
 GAME_WIN = 3
 current_game_state = MAIN_MENU
 
+# Global score tracking
+final_score = 0
+
 # Colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -357,7 +360,7 @@ play_button = Button(
 
 # Game loop
 def game_loop():
-    global current_game_state
+    global current_game_state, final_score
     clock = pygame.time.Clock()
     
     # Create a light effect with a smaller radius and higher intensity for a brighter, focused light
@@ -464,6 +467,7 @@ def game_loop():
                         
                         # Check if player has won
                         if score >= win_score:
+                            final_score = score
                             current_game_state = GAME_WIN
                             
                         # Display floating score text
@@ -504,6 +508,7 @@ def game_loop():
                         
                         # Check if player has lost
                         if current_misses >= misses_allowed:
+                            final_score = score
                             current_game_state = GAME_OVER
                     else:
                         # Just a background click, show a subtle effect but don't count as miss
@@ -667,32 +672,23 @@ def main_menu():
         pygame.display.flip()
         clock.tick(60)
 
-if __name__ == "__main__":
-    while True:
-        if current_game_state == MAIN_MENU:
-            main_menu()
-        elif current_game_state == GAME_PLAYING:
-            game_loop()
-        elif current_game_state == GAME_OVER:
-            game_over_screen()
-        elif current_game_state == GAME_WIN:
-            win_screen()
 # Game over screen
 def game_over_screen():
-    global current_game_state
+    global current_game_state, final_score
     clock = pygame.time.Clock()
     
     # Create fonts
-    title_font = pygame.font.SysFont('comicsansms', 64)
+    title_font = pygame.font.SysFont('comicsansms', 72)
     message_font = pygame.font.SysFont('arial', 32)
+    score_font = pygame.font.SysFont('arial', 36)
     instruction_font = pygame.font.SysFont('arial', 24)
     
     # Create restart button
     restart_button = Button(
         SCREEN_WIDTH // 2 - 100,
-        SCREEN_HEIGHT // 2 + 50,
+        SCREEN_HEIGHT // 2 + 80,
         200, 60,
-        "RESTART",
+        "RETRY",
         DARK_GREEN,
         GREEN
     )
@@ -700,16 +696,29 @@ def game_over_screen():
     # Create menu button
     menu_button = Button(
         SCREEN_WIDTH // 2 - 100,
-        SCREEN_HEIGHT // 2 + 130,
+        SCREEN_HEIGHT // 2 + 160,
         200, 60,
         "MENU",
         DARK_GREEN,
         GREEN
     )
     
+    # Create some fading fireflies for the background
+    fading_fireflies = []
+    for _ in range(15):
+        firefly = Firefly()
+        firefly.speed = 0.2  # Very slow movement
+        firefly.size = random.randint(2, 4)  # Smaller size
+        firefly.brightness = random.uniform(0.1, 0.3)  # Dimmer
+        fading_fireflies.append(firefly)
+    
+    # Animation variables
+    animation_counter = 0
+    
     while current_game_state == GAME_OVER:
         mouse_pos = pygame.mouse.get_pos()
         mouse_clicked = False
+        animation_counter += 1
         
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -718,6 +727,10 @@ def game_over_screen():
             elif event.type == MOUSEBUTTONDOWN:
                 if event.button == 1:
                     mouse_clicked = True
+        
+        # Update fading fireflies
+        for firefly in fading_fireflies:
+            firefly.update()
         
         # Check button hover and click
         restart_button.check_hover(mouse_pos)
@@ -732,28 +745,55 @@ def game_over_screen():
             return
         
         # Draw everything
-        screen.fill((10, 10, 40))  # Dark blue background
+        screen.fill((5, 5, 20))  # Darker background
         
-        # Draw title
-        title_text = title_font.render("GAME OVER", True, (255, 50, 50))
-        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 100))
+        # Draw fading fireflies
+        for firefly in fading_fireflies:
+            firefly.draw(screen)
+        
+        # Create a semi-transparent overlay
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))  # Semi-transparent black
+        screen.blit(overlay, (0, 0))
+        
+        # Draw title with pulsating effect
+        pulse = math.sin(animation_counter * 0.05) * 20 + 235  # Pulsate between 215-255
+        title_color = (255, int(pulse), int(pulse))  # Pulsating red
+        
+        title_text = title_font.render("GAME OVER", True, title_color)
+        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 120))
+        
+        # Add shadow effect to title
+        shadow_text = title_font.render("GAME OVER", True, (40, 0, 0))
+        shadow_rect = shadow_text.get_rect(center=(SCREEN_WIDTH // 2 + 4, SCREEN_HEIGHT // 2 - 116))
+        screen.blit(shadow_text, shadow_rect)
         screen.blit(title_text, title_rect)
         
         # Draw message
         message_text = message_font.render("You missed the fireflies too many times!", True, (255, 255, 255))
-        message_rect = message_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20))
+        message_rect = message_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 30))
         screen.blit(message_text, message_rect)
+        
+        # Draw score
+        score_text = score_font.render(f"Final Score: {final_score:,}", True, (255, 255, 100))
+        score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 20))
+        screen.blit(score_text, score_rect)
         
         # Draw buttons
         restart_button.draw(screen)
         menu_button.draw(screen)
+        
+        # Draw tip
+        tip_text = instruction_font.render("Tip: Click carefully when you see a firefly!", True, (200, 200, 200))
+        tip_rect = tip_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 40))
+        screen.blit(tip_text, tip_rect)
         
         pygame.display.flip()
         clock.tick(60)
 
 # Win screen
 def win_screen():
-    global current_game_state
+    global current_game_state, final_score
     clock = pygame.time.Clock()
     
     # Create fonts
@@ -840,7 +880,7 @@ def win_screen():
         screen.blit(title_text, title_rect)
         
         # Draw message
-        message_text = message_font.render("You collected 100,000 points!", True, (255, 255, 255))
+        message_text = message_font.render(f"You collected {final_score:,} points!", True, (255, 255, 255))
         message_rect = message_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20))
         screen.blit(message_text, message_rect)
         
@@ -850,3 +890,15 @@ def win_screen():
         
         pygame.display.flip()
         clock.tick(60)
+
+
+if __name__ == "__main__":
+    while True:
+        if current_game_state == MAIN_MENU:
+            main_menu()
+        elif current_game_state == GAME_PLAYING:
+            game_loop()
+        elif current_game_state == GAME_OVER:
+            game_over_screen()
+        elif current_game_state == GAME_WIN:
+            win_screen()
