@@ -3,7 +3,7 @@ import sys
 import random
 import math
 from pygame.locals import *
-import music
+import components.music as music
 
 # Components
 from components.firefly import Firefly
@@ -30,6 +30,11 @@ GAME_PLAYING = 1
 GAME_OVER = 2
 GAME_WIN = 3
 current_game_state = MAIN_MENU
+
+# Game over reasons
+GAME_OVER_LIGHT = 0
+GAME_OVER_MISSED = 1
+game_over_reason = GAME_OVER_LIGHT
 
 # Global score tracking
 final_score = 0
@@ -170,6 +175,11 @@ def game_loop():
     # Game win parameters
     win_score = 20000  # Score needed to win
     
+    # Missed fireflies tracking
+    missed_fireflies = 0
+    # Maximum allowed missed fireflies per level
+    max_missed_fireflies = [float('inf'), 15, 10, 5, 0]  # Level 1, 2, 3, 4, 5
+    
     # Start the game timer
     start_time = pygame.time.get_ticks()
     
@@ -228,7 +238,7 @@ def game_loop():
             firefly = Firefly()
             
             # Adjust animation speed based on difficulty
-            animation_speed = 0.03 + (0.02 * current_difficulty)  # 0.03 to 0.05
+            animation_speed = 0.03 + (0.04 * current_difficulty)  # 0.03 to 0.05
             firefly.animation_speed = animation_speed
             
             firefly.speed = 0  # Make it stationary
@@ -260,6 +270,8 @@ def game_loop():
             if not firefly.disappearing and not firefly.clicked:
                 if current_time - firefly_data['creation_time'] >= firefly_lifetime:
                     firefly.start_disappearing()
+                    # Count this as a missed firefly when it starts disappearing
+                    missed_fireflies += 1
             
             # Check for clicks on fireflies
             if mouse_clicked:
@@ -333,11 +345,25 @@ def game_loop():
         if abs(light_effect.radius - base_light_radius) < 0.5 and current_time - start_time > 3000:  # Give 3 seconds grace period
             # Game over - player's light has returned to original size
             final_score = score
+            
+            game_over_reason = GAME_OVER_LIGHT
             current_game_state = GAME_OVER
             music.stop_music("bg_music")
             music.play_sound("game_over")
             music.play_music("intro", loops=-1, fade_ms=1000)
 
+            return  # Exit the game loop immediately
+        
+        # Check if player has exceeded the missed fireflies limit for their level
+        current_level = difficulty_level + 1  # Convert 0-based index to 1-based level
+        if current_level <= len(max_missed_fireflies) and missed_fireflies > max_missed_fireflies[difficulty_level]:
+            # Game over - player missed too many fireflies for their level
+            final_score = score
+            game_over_reason = GAME_OVER_MISSED
+            current_game_state = GAME_OVER
+            music.stop_music("bg_music")
+            music.play_sound("game_over")
+            music.play_music("intro", loops=-1, fade_ms=1000)
             return  # Exit the game loop immediately
         
         # Update click effects
@@ -421,6 +447,21 @@ def game_loop():
             
         level_text = score_font.render(f"Level: {level_number}", True, level_color)
         screen.blit(level_text, (SCREEN_WIDTH - level_text.get_width() - 10, 40))
+        
+        # Draw missed fireflies counter
+        if level_number <= len(max_missed_fireflies):
+            allowed_misses = max_missed_fireflies[difficulty_level]
+            # Choose color based on how close to limit
+            if level_number >= 2:  # Only show for level 2+
+                if missed_fireflies <= allowed_misses * 0.5:
+                    miss_color = (50, 255, 50)  # Green
+                elif missed_fireflies <= allowed_misses * 0.8:
+                    miss_color = (255, 255, 50)  # Yellow
+                else:
+                    miss_color = (255, 50, 50)  # Red
+                
+                miss_text = instruction_font.render(f"Missed: {missed_fireflies}/{allowed_misses}", True, miss_color)
+                screen.blit(miss_text, (10, 40))
         
         # Draw light radius bonus if any
         if light_radius_bonus > 0:
@@ -649,7 +690,10 @@ def game_over_screen():
         screen.blit(title_text, title_rect)
         
         # Draw message
-        message_text = message_font.render("You missed the fireflies too many times!", True, (255, 255, 255))
+        if game_over_reason == GAME_OVER_LIGHT:
+            message_text = message_font.render("Your light faded away!", True, (255, 255, 255))
+        else:  # GAME_OVER_MISSED
+            message_text = message_font.render("You missed too many fireflies for your level!", True, (255, 255, 255))
         message_rect = message_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 30))
         screen.blit(message_text, message_rect)
         
@@ -663,7 +707,10 @@ def game_over_screen():
         menu_button.draw(screen)
         
         # Draw tip
-        tip_text = instruction_font.render("Tip: Click carefully when you see a firefly!", True, (200, 200, 200))
+        if game_over_reason == GAME_OVER_LIGHT:
+            tip_text = instruction_font.render("Tip: Click fireflies to increase your light radius!", True, (200, 200, 200))
+        else:  # GAME_OVER_MISSED
+            tip_text = instruction_font.render("Tip: Higher levels allow fewer missed fireflies!", True, (200, 200, 200))
         tip_rect = tip_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 40))
         screen.blit(tip_text, tip_rect)
         

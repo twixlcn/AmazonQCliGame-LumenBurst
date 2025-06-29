@@ -49,7 +49,7 @@ def play_music(name, loops=-1, fade_ms=0):
     else:
         print(f"Warning: Music '{name}' not loaded")
 
-def play_sound(name, volume=1.0):
+def play_sound(name, volume=0.2):
     """
     Play a sound effect
     
@@ -84,6 +84,7 @@ def set_volume(volume):
 # Load all music files at startup
 def initialize():
     """Initialize and load all music files and sound effects"""
+    
     # Load background music
     load_music("intro", "assets/music/intro.mp3")
     load_music("bg_music", "assets/music/bg_music.mp3")
