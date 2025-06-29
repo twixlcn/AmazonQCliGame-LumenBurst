@@ -18,8 +18,8 @@ pygame.init()
 music.initialize()
 
 # Screen dimensions
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Lumen Burst")
 
@@ -48,8 +48,8 @@ BROWN = (139, 69, 19)
 LIGHT_YELLOW = (255, 255, 224)
 
 # Font
-title_font = pygame.font.SysFont('comicsansms', 64)
-button_font = pygame.font.SysFont('comicsansms', 36)
+title_font = pygame.font.SysFont('comicsansms', 80)
+button_font = pygame.font.SysFont('comicsansms', 42)
 
 # Load images
 tree_img = pygame.image.load('assets/tree.png').convert_alpha()
@@ -67,42 +67,47 @@ dark_bg_img = pygame.transform.scale(dark_bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 # Classes have been moved to separate files
 
 # Create game objects
-fireflies = [Firefly() for _ in range(50)]
+fireflies = [Firefly() for _ in range(120)]
 
 # Create trees with fixed types (alternating between regular and long trees)
 trees = [
     Tree(100, SCREEN_HEIGHT, 30, False, tree_img, long_tree_img),  # Regular tree
-    Tree(200, SCREEN_HEIGHT, 25, False, tree_img, long_tree_img),  # Regular tree
-    Tree(300, SCREEN_HEIGHT, 20, True, tree_img, long_tree_img),   # Long tree
-    Tree(450, SCREEN_HEIGHT, 35, False, tree_img, long_tree_img),  # Regular tree
-    Tree(700, SCREEN_HEIGHT, 25, True, tree_img, long_tree_img),   # Long tree
-    Tree(600, SCREEN_HEIGHT, 30, True, tree_img, long_tree_img)    # Long tree
+    Tree(250, SCREEN_HEIGHT, 25, False, tree_img, long_tree_img),  # Regular tree
+    Tree(400, SCREEN_HEIGHT, 20, True, tree_img, long_tree_img),   # Long tree
+    Tree(600, SCREEN_HEIGHT, 35, False, tree_img, long_tree_img),  # Regular tree
+    Tree(800, SCREEN_HEIGHT, 25, True, tree_img, long_tree_img),   # Long tree
+    Tree(1000, SCREEN_HEIGHT, 30, True, tree_img, long_tree_img),  # Long tree
+    Tree(1150, SCREEN_HEIGHT, 28, False, tree_img, long_tree_img)  # Regular tree
 ]
 
 # Create bushes with fixed types
 bushes = [
-    Bush(50, SCREEN_HEIGHT, 20, False, short_bush_img, long_bush_img),  # Short bush
-    Bush(150, SCREEN_HEIGHT, 20, True, short_bush_img, long_bush_img),  # Long bush
-    Bush(250, SCREEN_HEIGHT, 25, False, short_bush_img, long_bush_img),   # Short bush
-    Bush(400, SCREEN_HEIGHT, 25, True, short_bush_img, long_bush_img),   # Long bush
-    Bush(550, SCREEN_HEIGHT, 20, False, short_bush_img, long_bush_img),   # Short bush      
-    Bush(650, SCREEN_HEIGHT, 20, True, short_bush_img, long_bush_img),  # Long bush
-    Bush(750, SCREEN_HEIGHT, 20, False, short_bush_img, long_bush_img),   # Short bush      
+    Bush(50, SCREEN_HEIGHT, 20, False, short_bush_img, long_bush_img),   # Short bush
+    Bush(180, SCREEN_HEIGHT, 20, True, short_bush_img, long_bush_img),   # Long bush
+    Bush(320, SCREEN_HEIGHT, 25, False, short_bush_img, long_bush_img),  # Short bush
+    Bush(500, SCREEN_HEIGHT, 25, True, short_bush_img, long_bush_img),   # Long bush
+    Bush(680, SCREEN_HEIGHT, 20, False, short_bush_img, long_bush_img),  # Short bush      
+    Bush(850, SCREEN_HEIGHT, 20, True, short_bush_img, long_bush_img),   # Long bush
+    Bush(950, SCREEN_HEIGHT, 20, False, short_bush_img, long_bush_img),  # Short bush
+    Bush(1100, SCREEN_HEIGHT, 22, True, short_bush_img, long_bush_img),  # Long bush
+    Bush(1220, SCREEN_HEIGHT, 18, False, short_bush_img, long_bush_img)  # Short bush      
 ]
 
 # Add rocks to the scene
 rocks = [
-    Rock(180, SCREEN_HEIGHT, 25, rock_img),
+    Rock(150, SCREEN_HEIGHT, 25, rock_img),
     Rock(450, SCREEN_HEIGHT, 30, rock_img),
-    Rock(620, SCREEN_HEIGHT, 20, rock_img),
-    Rock(350, SCREEN_HEIGHT, 15, rock_img)
+    Rock(720, SCREEN_HEIGHT, 20, rock_img),
+    Rock(900, SCREEN_HEIGHT, 15, rock_img),
+    Rock(1050, SCREEN_HEIGHT, 25, rock_img),
+    Rock(1200, SCREEN_HEIGHT, 18, rock_img)
 ]
 
 # Create play button
 play_button = Button(
-    SCREEN_WIDTH // 2 - 100,
-    SCREEN_HEIGHT // 2 + 50,
-    200, 60,
+    SCREEN_WIDTH // 2 - 125,
+    SCREEN_HEIGHT // 2 + 70,
+    250, 70,
     "PLAY",
     DARK_GREEN,
     GREEN,
@@ -197,12 +202,14 @@ def game_loop():
         if difficulty_level > previous_level:
             previous_level = difficulty_level
             music.play_sound("level_up")
+            # Reset missed fireflies counter when advancing to a new level
+            missed_fireflies = 0
             # Create level up effect
             level_up_effect = {
                 'timer': 120,  # Show for 2 seconds
                 'text': f"LEVEL {difficulty_level + 1}!",
                 'size': 48,
-                'color': (255, 255, 100)
+                'color': (255, 255, 100),
             }
         
         # Get difficulty percentage based on current level
@@ -235,6 +242,10 @@ def game_loop():
         if len(game_fireflies) < 5 and current_time - last_spawn_time > firefly_spawn_delay:
             # Create a new stationary firefly
             firefly = Firefly()
+            
+            # Ensure firefly appears within screen bounds
+            firefly.x = random.randint(50, SCREEN_WIDTH - 50)
+            firefly.y = random.randint(50, SCREEN_HEIGHT - 50)
             
             # Adjust animation speed based on difficulty
             animation_speed = 0.03 + (0.04 * current_difficulty)  # 0.03 to 0.05
@@ -272,45 +283,46 @@ def game_loop():
                     # Count this as a missed firefly when it starts disappearing
                     missed_fireflies += 1
             
-            # Check for clicks on fireflies
-            if mouse_clicked:
-                firefly_hit = False
-                for i, firefly_data in enumerate(game_fireflies):
-                    firefly = firefly_data['firefly']
-                    clicked, points = firefly.check_click(mouse_pos)
-                    if clicked:
-                        firefly_hit = True
-                        music.play_sound("collect_fireflies")
-                        score += points
-                        
-                        # Check if player has won
-                        if score >= win_score:
-                            final_score = score
-                            current_game_state = GAME_WIN
+                # Check for clicks on fireflies
+                if mouse_clicked:
+                    firefly_hit = False
+                    for i, firefly_data in enumerate(game_fireflies):
+                        firefly = firefly_data['firefly']
+                        clicked, points = firefly.check_click(mouse_pos)
+                        if clicked:
+                            firefly_hit = True
+                            music.play_sound("collect_fireflies")
+                            score += points
                             
-                        # Display floating score text
-                        game_fireflies[i]['score_text'] = {
-                            'value': points,
-                            'position': (firefly.x, firefly.y),
-                            'timer': 60,  # Show for 60 frames (1 second at 60 FPS)
-                            'color': (255, 255, 100) if points >= 100 else (255, 255, 255)
-                        }
-                        # Increase light radius when firefly is clicked
-                        max_radius_with_bonus = max_light_radius + light_radius_bonus
-                        light_effect.radius = min(max_radius_with_bonus, light_effect.radius + light_growth_per_click)
-                        # Recreate the light surface with new radius
-                        light_effect.glow_surf = pygame.Surface((int(light_effect.radius * 2), int(light_effect.radius * 2)), pygame.SRCALPHA)
-                        light_effect.create_light_surface()
-                        break  # Only process one click at a time
-                
-                # Add a click effect regardless of whether a firefly was hit
-                if not firefly_hit:
-                    click_effects.append({
-                        'position': mouse_pos,
-                        'timer': 15,  # Show for quarter second
-                        'radius': 5,  # Small radius
-                        'color': (150, 150, 150, 120)  # Gray with transparency
-                    })
+                            # Check if player has won
+                            if score >= win_score:
+                                final_score = score
+                                current_game_state = GAME_WIN
+                                
+                            # Display floating score text
+                            game_fireflies[i]['score_text'] = {
+                                'value': points,
+                                'position': (firefly.x, firefly.y),
+                                'timer': 60,  # Show for 60 frames (1 second at 60 FPS)
+                                'color': (255, 255, 100) if points >= 100 else (255, 255, 255)
+                            }
+                            
+                            # Increase light radius when firefly is clicked
+                            max_radius_with_bonus = max_light_radius + light_radius_bonus
+                            light_effect.radius = min(max_radius_with_bonus, light_effect.radius + light_growth_per_click)
+                            # Recreate the light surface with new radius
+                            light_effect.glow_surf = pygame.Surface((int(light_effect.radius * 2), int(light_effect.radius * 2)), pygame.SRCALPHA)
+                            light_effect.create_light_surface()
+                            break  # Only process one click at a time
+                    
+                    # Add a click effect regardless of whether a firefly was hit
+                    if not firefly_hit:
+                        click_effects.append({
+                            'position': mouse_pos,
+                            'timer': 15,  # Show for quarter second
+                            'radius': 5,  # Small radius
+                            'color': (150, 150, 150, 120)  # Gray with transparency
+                        })
             
             # Update firefly and check if it should be removed
             if firefly.update():
@@ -363,7 +375,7 @@ def game_loop():
             music.stop_music("bg_music")
             music.play_sound("game_over")
             music.play_music("intro", loops=-1, fade_ms=1000)
-            return  # Exit the game loop immediately
+            return 
         
         # Update click effects
         click_effects_to_remove = []
@@ -459,7 +471,17 @@ def game_loop():
                 else:
                     miss_color = (255, 50, 50)  # Red
                 
+                # Show missed fireflies counter with limit
                 miss_text = instruction_font.render(f"Missed: {missed_fireflies}/{allowed_misses}", True, miss_color)
+                screen.blit(miss_text, (10, 40))
+                
+                # Add a note about reset on level up
+                if missed_fireflies > 0:
+                    reset_text = instruction_font.render("(Resets on level up)", True, (180, 180, 180))
+                    screen.blit(reset_text, (10, 65))
+            elif level_number == 1:
+                # For level 1, show that misses are unlimited
+                miss_text = instruction_font.render(f"Collect as many fireflies as you can!", True, (50, 255, 50))
                 screen.blit(miss_text, (10, 40))
         
         # Draw light radius bonus if any
@@ -500,7 +522,7 @@ def game_loop():
                 level_surf.set_alpha(opacity)
                 
                 # Draw centered on screen
-                level_rect = level_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+                level_rect = level_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20))
                 screen.blit(level_surf, level_rect)
             else:
                 level_up_effect = None
@@ -519,6 +541,16 @@ def main_menu():
     
     # Play intro music when entering main menu
     music.play_music("intro", loops=-1, fade_ms=1000)
+    
+    # Ensure fireflies are distributed across the entire screen
+    for firefly in fireflies:
+        # Explicitly set position to cover the entire screen
+        firefly.x = random.randint(0, SCREEN_WIDTH)
+        firefly.y = random.randint(0, SCREEN_HEIGHT)
+        # Vary the sizes and speeds more
+        firefly.size = random.randint(3, 9)
+        firefly.speed = random.uniform(0.3, 1.8)
+        firefly.brightness = random.uniform(0.4, 1.0)
     
     while True:
         mouse_pos = pygame.mouse.get_pos()
@@ -565,7 +597,7 @@ def main_menu():
         
         # Draw title
         title_text = title_font.render("Lumen Burst", True, LIGHT_YELLOW)
-        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50))
+        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 80))
         
         # Add glow effect to title
         glow_surf = pygame.Surface((title_rect.width + 20, title_rect.height + 20), pygame.SRCALPHA)
@@ -622,8 +654,11 @@ def game_over_screen():
     
     # Create some fading fireflies for the background
     fading_fireflies = []
-    for _ in range(15):
+    for _ in range(25): 
         firefly = Firefly()
+        # Ensure fireflies appear across the entire screen
+        firefly.x = random.randint(0, SCREEN_WIDTH)
+        firefly.y = random.randint(0, SCREEN_HEIGHT)
         firefly.speed = 0.2  # Very slow movement
         firefly.size = random.randint(2, 4)  # Smaller size
         firefly.brightness = random.uniform(0.1, 0.3)  # Dimmer
@@ -752,8 +787,11 @@ def win_screen():
     )
     
     # Create victory fireflies
-    victory_fireflies = [Firefly() for _ in range(100)]
+    victory_fireflies = [Firefly() for _ in range(150)]  # Increased from 100 to 150
     for firefly in victory_fireflies:
+        # Ensure fireflies appear across the entire screen
+        firefly.x = random.randint(0, SCREEN_WIDTH)
+        firefly.y = random.randint(0, SCREEN_HEIGHT)
         firefly.size = random.randint(3, 8)
         firefly.brightness = random.uniform(0.7, 1.0)
     
