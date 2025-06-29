@@ -545,8 +545,9 @@ def main_menu():
         # Explicitly set position to cover the entire screen
         firefly.x = random.randint(0, SCREEN_WIDTH)
         firefly.y = random.randint(0, SCREEN_HEIGHT)
+
         # Vary the sizes and speeds more
-        firefly.size = random.randint(3, 9)
+        firefly.size = random.randint(2, 5)
         firefly.speed = random.uniform(0.3, 1.8)
         firefly.brightness = random.uniform(0.4, 1.0)
     
@@ -598,16 +599,7 @@ def main_menu():
         title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 80))
         
         # Add glow effect to title
-        glow_surf = pygame.Surface((title_rect.width + 20, title_rect.height + 20), pygame.SRCALPHA)
-        for i in range(10, 0, -2):
-            alpha = 10 + 5 * i
-            pygame.draw.rect(
-                glow_surf, 
-                (LIGHT_YELLOW[0], LIGHT_YELLOW[1], LIGHT_YELLOW[2], alpha),
-                (10 - i, 10 - i, title_rect.width + i * 2, title_rect.height + i * 2),
-                border_radius=10
-            )
-        screen.blit(glow_surf, (title_rect.x - 10, title_rect.y - 10))
+        
         screen.blit(title_text, title_rect)
         
         # Draw play button
@@ -659,7 +651,7 @@ def game_over_screen():
         firefly.y = random.randint(0, SCREEN_HEIGHT)
         firefly.speed = 0.2  # Very slow movement
         firefly.size = random.randint(2, 4)  # Smaller size
-        firefly.brightness = random.uniform(0.1, 0.3)  # Dimmer
+        firefly.brightness = random.uniform(0.1, 0.3)  
         fading_fireflies.append(firefly)
     
     # Animation variables
