@@ -64,8 +64,6 @@ dark_bg_img = pygame.image.load('assets/dark_bg.png').convert()
 light_bg_img = pygame.transform.scale(light_bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 dark_bg_img = pygame.transform.scale(dark_bg_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
-# Classes have been moved to separate files
-
 # Create game objects
 fireflies = [Firefly() for _ in range(120)]
 
