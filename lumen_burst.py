@@ -13,9 +13,8 @@ from components.rock import Rock
 from components.button import Button
 from components.light_effect import LightEffect
 
-# Initialize pygame
+# Initialize pygame & music
 pygame.init()
-# Initialize music
 music.initialize()
 
 # Screen dimensions
@@ -80,7 +79,7 @@ trees = [
     Tree(600, SCREEN_HEIGHT, 30, True, tree_img, long_tree_img)    # Long tree
 ]
 
-# Create bushes with fixed types (alternating between short and long bushes)
+# Create bushes with fixed types
 bushes = [
     Bush(50, SCREEN_HEIGHT, 20, False, short_bush_img, long_bush_img),  # Short bush
     Bush(150, SCREEN_HEIGHT, 20, True, short_bush_img, long_bush_img),  # Long bush
